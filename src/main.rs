@@ -1,24 +1,22 @@
 use std::{io::Write, thread, time};
 
-use imgproc::INTER_LINEAR;
-use opencv::{core::CV_HAL_SVD_SHORT_UV, imgproc::{self, INTER_NEAREST}};
+use opencv::imgproc;
 use opencv::videoio::prelude::*;
-use opencv::videoio::{self, VideoCapture, VideoWriter};
+use opencv::videoio::{self, VideoCapture};
 use opencv::{
-    core::{Mat, Size, Vector},
-    highgui::imshow,
-    imgcodecs::imwrite,
-    prelude::{MatTrait, MatTraitManual},
-    videoio::{CAP_FFMPEG, CAP_OPENCV_MJPEG},
+    core::{Mat, Size},
+    prelude::MatTrait,
 };
 
 use console::Term;
 
+mod source;
+
 fn main() -> anyhow::Result<()> {
-    let mut capture = VideoCapture::from_file("bad-apple.mp4", 0)?;
+    let mut capture = VideoCapture::from_file("video/test.mp4", 0)?;
     let open = VideoCapture::is_opened(&capture)?;
     if !open {
-        panic!("filed to open input file");
+        panic!("failed to open input file");
     }
 
     let mut term = Term::buffered_stdout();
@@ -29,13 +27,8 @@ fn main() -> anyhow::Result<()> {
     let source_aspect = source_width / source_height;
     let (height, _) = term.size();
     let height = height as i32;
-    let width = (height as f64 * source_aspect * 2.0) as i32;
+    let width = (height as f64 * source_aspect / CHARACTER_ASPECT) as i32;
     let dest_size = Size::new(width, height);
-
-    let acsii_chars: Vec<char> =
-        " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
-            .chars()
-            .collect();
 
     let source_fps = capture.get(videoio::CAP_PROP_FPS)?;
     let target_duration = time::Duration::from_secs_f64(1.0 / source_fps);
@@ -50,7 +43,7 @@ fn main() -> anyhow::Result<()> {
 
         let mut downscaled = Mat::default()?;
 
-        imgproc::resize(&frame, &mut downscaled, dest_size, 0.0, 0.0, INTER_LINEAR)?;
+        imgproc::resize(&frame, &mut downscaled, dest_size, 0.0, 0.0, imgproc::INTER_LINEAR)?;
 
         let mut greyscale = Mat::default()?;
         imgproc::cvt_color(&downscaled, &mut greyscale, imgproc::COLOR_BGR2GRAY, 0)?;
