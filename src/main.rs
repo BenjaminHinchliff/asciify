@@ -1,9 +1,9 @@
-use std::{io::Write, path::PathBuf, str::FromStr, thread, time};
+use std::{fs, io::Write, path::PathBuf, str::FromStr, thread, time};
 
 use lazy_static::lazy_static;
 use opencv::imgproc;
 use opencv::{
-    core::{Mat, Size},
+    core::{Mat, Size, Vec3b},
     prelude::MatTrait,
 };
 
@@ -11,6 +11,9 @@ use console::Term;
 
 mod source;
 use source::Source;
+
+mod color256;
+use color256::{Color, Color256, Rgb};
 
 const CHARACTER_ASPECT: f32 = 1.0 / 2.6;
 
@@ -23,8 +26,10 @@ lazy_static! {
 }
 
 fn main() -> anyhow::Result<()> {
-    let path = PathBuf::from_str("video/bad-apple.mp4")?;
+    let path = PathBuf::from_str("res/video/bad-apple.mp4")?;
     let mut source = Source::new(&path)?;
+
+    let colors = Color256::new(&fs::read_to_string("res/color256.json")?)?;
 
     let mut term = Term::buffered_stdout();
     term.clear_screen()?;
@@ -55,18 +60,19 @@ fn main() -> anyhow::Result<()> {
             imgproc::INTER_CUBIC,
         )?;
 
-        let mut greyscale = Mat::default()?;
-        imgproc::cvt_color(&downscaled, &mut greyscale, imgproc::COLOR_BGR2GRAY, 0)?;
-
         term.move_cursor_to(0, 0)?;
         for y in 0..height {
             for x in 0..width {
+                let raw_color: &Vec3b = downscaled.at_2d(y, x)?;
+                let [b, g, r] = raw_color.0;
+                let color = Rgb::new(r, g, b);
+                let brightness = color.brightness();
+                let character = ACSII_CHARS[brightness as usize * ACSII_CHARS.len() / 256];
+                let color_256 = colors.approx_from_rgb(&color);
                 write!(
                     term,
                     "{}",
-                    ACSII_CHARS[*greyscale.at_2d::<std::os::raw::c_uchar>(y, x)? as usize
-                        * ACSII_CHARS.len()
-                        / 256]
+                    console::style(character).color256(color_256.id),
                 )?;
             }
             if y != height - 1 {
@@ -78,6 +84,8 @@ fn main() -> anyhow::Result<()> {
         if draw_time < target_duration {
             thread::sleep(target_duration - draw_time);
         }
+        write!(term, " {:?} {:?} {:?}", draw_time, time::Instant::now() - start, target_duration.checked_sub(draw_time).unwrap_or(time::Duration::from_secs(0)))?;
+        term.flush()?;
     }
 
     Ok(())
