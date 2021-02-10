@@ -1,5 +1,6 @@
-use std::{fs, io::Write, path::PathBuf, str::FromStr, time};
+use std::{env, io::Write, path::PathBuf, str::FromStr, time};
 
+use clap::{crate_version, App, Arg};
 use lazy_static::lazy_static;
 use opencv::imgproc;
 use opencv::{
@@ -26,10 +27,27 @@ lazy_static! {
 }
 
 fn main() -> anyhow::Result<()> {
-    let path = PathBuf::from_str("res/video/bad-apple.mp4")?;
+    let matches = App::new(env!("CARGO_PKG_NAME"))
+        .version(crate_version!())
+        .author(env!("CARGO_PKG_AUTHORS"))
+        .about("play video files in the terminal with color")
+        .arg(
+            Arg::with_name("INPUT")
+                .help("sets the input file to use")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("debug")
+                .short("d")
+                .long("debug")
+                .help("print frame draw time"),
+        )
+        .get_matches();
+    let path = PathBuf::from_str(matches.value_of("INPUT").unwrap())?;
     let mut source = Source::new(&path)?;
 
-    let colors = Color256::new(&fs::read_to_string("res/color256.json")?)?;
+    let colors = Color256::new(include_str!("../res/color256.json"))?;
 
     let mut term = Term::buffered_stdout();
     term.clear_screen()?;
@@ -69,11 +87,7 @@ fn main() -> anyhow::Result<()> {
                 let brightness = color.brightness();
                 let character = ACSII_CHARS[brightness as usize * ACSII_CHARS.len() / 256];
                 let color_256 = colors.approx_from_rgb(&color);
-                write!(
-                    term,
-                    "{}",
-                    console::style(character).color256(color_256.id),
-                )?;
+                write!(term, "{}", console::style(character).color256(color_256.id),)?;
             }
             if y != height - 1 {
                 writeln!(term)?;
@@ -84,8 +98,10 @@ fn main() -> anyhow::Result<()> {
         if draw_time < target_duration {
             spin_sleep::sleep(target_duration - draw_time);
         }
-        write!(term, " {:?} {:?} {:?}", draw_time, time::Instant::now() - start, target_duration.checked_sub(draw_time).unwrap_or(time::Duration::from_secs(0)))?;
-        term.flush()?;
+        if matches.is_present("debug") {
+            write!(term, " {:?} / {:?}", time::Instant::now() - start, target_duration)?;
+            term.flush()?;
+        }
     }
 
     Ok(())
