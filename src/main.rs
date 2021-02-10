@@ -1,4 +1,4 @@
-use std::{fs, io::Write, path::PathBuf, str::FromStr, thread, time};
+use std::{fs, io::Write, path::PathBuf, str::FromStr, time};
 
 use lazy_static::lazy_static;
 use opencv::imgproc;
@@ -13,7 +13,7 @@ mod source;
 use source::Source;
 
 mod color256;
-use color256::{Color, Color256, Rgb};
+use color256::{Color256, Rgb};
 
 const CHARACTER_ASPECT: f32 = 1.0 / 2.6;
 
@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
         term.flush()?;
         let draw_time = time::Instant::now() - start;
         if draw_time < target_duration {
-            thread::sleep(target_duration - draw_time);
+            spin_sleep::sleep(target_duration - draw_time);
         }
         write!(term, " {:?} {:?} {:?}", draw_time, time::Instant::now() - start, target_duration.checked_sub(draw_time).unwrap_or(time::Duration::from_secs(0)))?;
         term.flush()?;

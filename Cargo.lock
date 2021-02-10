@@ -10,6 +10,7 @@ dependencies = [
  "opencv",
  "serde",
  "serde_json",
+ "spin_sleep",
  "thiserror",
 ]
 
@@ -303,6 +304,16 @@ name = "shlex"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
+
+[[package]]
+name = "spin_sleep"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a98101bdc3833e192713c2af0b0dd2614f50d1cf1f7a97c5221b7aac052acc7"
+dependencies = [
+ "once_cell",
+ "winapi",
+]
 
 [[package]]
 name = "syn"
